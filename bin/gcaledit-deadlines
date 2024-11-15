@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+## deadlines: put deadlines into spreadsheet
+
+## Copyright 2020-2021, 2023-2024 Michael M. Hoffman <michael.hoffman@utoronto.ca>
+
+set -o nounset -o pipefail -o errexit
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo usage: "$0" [START] [END] [GREPARGS...]
+    exit 2
+fi
+
+calendar="${GCALEDIT_DEADLINES_CALENDAR:-Deadlines}"
+
+start="${1:-3 days ago}" # suggest 3 days ago
+end="${2:-1 year}" # suggest 1 year
+
+shift 2
+
+# grepargs: suggest .
+
+exec gcaledit --calendar "$calendar" "$start 12am" "$end 11:59pm" "$@"

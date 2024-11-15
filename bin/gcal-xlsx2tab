@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+"""xlsx2gcaltab: Convert a workbook to tab-separated values for gcalcli."""
+
+__version__ = "0.1"
+
+# Copyright 2021, 2023, 2024 Michael M. Hoffman <michael.hoffman@utoronto.ca>
+
+from argparse import Namespace
+from os import EX_OK
+from pathlib import Path
+import sys
+
+from pandas import DataFrame, NaT, read_excel, to_datetime
+
+
+CSV_SEP = "\t"
+
+DATE_FORMAT_DATE = "ISO8601"
+
+# https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
+# hour (24-hour clock, zero padded):minute (zero-padded)
+DATE_FORMAT_TIME = "%H:%M"
+
+# XXX: instead of hardcoding the two date columns, infer this from columns with
+# names ending in _date
+DATE_FORMAT: dict[str, str] = {"start_date": DATE_FORMAT_DATE,
+                               "end_date": DATE_FORMAT_DATE}
+PARSE_DATES: list[str] = list(map(str, DATE_FORMAT))
+
+EXCEL_DTYPE = {"start_date": str, "start_time": str,
+               "end_date": str, "end_time": str}
+
+
+def update_datetime(dataframe: DataFrame, colname: str) -> None:
+    colname_type = colname.rpartition("_")[2]
+
+    match colname_type:
+        case "date" | "time":
+            pass
+        case _:
+            return
+
+    col = to_datetime(dataframe[colname], format="mixed")
+    dataframe[colname] = getattr(col.dt, colname_type)
+
+
+def xlsx2tab(filepath: Path) -> int:
+    """Convert a workbook to tab-separated values."""
+    dataframe = read_excel(filepath, dtype=EXCEL_DTYPE)
+
+    for colname in dataframe.columns:
+        update_datetime(dataframe, colname)
+
+    try:
+        # XXX: add this back in when `gcalcli agendaupdate` can handle it
+        del dataframe["length"]
+    except KeyError:
+        # gcalcli 4.5.0 doesn't support `--details length`
+        # https://github.com/insanum/gcalcli/issues/791
+        pass
+
+    dataframe.replace(NaT, "")
+
+    dataframe.to_csv(sys.stdout, sep=CSV_SEP, index=False)
+
+    return EX_OK
+
+
+def parse_args(args: list[str]) -> Namespace:
+    """Parse arguments."""
+    from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+
+    description = __doc__.splitlines()[0].partition(": ")[2]
+    parser = ArgumentParser(description=description,
+                            formatter_class=ArgumentDefaultsHelpFormatter)
+
+    version = f"%(prog)s {__version__}"
+    parser.add_argument("--version", action="version", version=version)
+
+    parser.add_argument("infile", metavar="XLSX", type=Path,
+                        help="path of input XLSX workbook")
+
+    return parser.parse_args(args)
+
+
+def main(argv: list[str] = sys.argv[1:]) -> int:
+    """Provide command-line interface."""
+    args = parse_args(argv)
+
+    return xlsx2tab(args.infile)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

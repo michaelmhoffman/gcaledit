@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+
+## gcaledit: edit Google Calendar in spreadsheet
+
+## Copyright 2020, 2021, 2023, 2024 Michael M. Hoffman <michael.hoffman@utoronto.ca>
+
+set -o nounset -o pipefail -o errexit
+
+if [[ $# -lt 4 || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    printf >&2 \
+           "usage: %s --calendar EDITCAL [--calendar OTHERCAL]... START END [GREPARGS...]" \
+           "$0"
+    exit 2
+fi
+
+calendar_args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --calendar)
+            if [[ -n "$2" ]]; then
+                calendar_args+=("--calendar" "$2")
+                shift 2
+            else
+                echo >&2 "error: --calendar requires argument"
+                exit 1
+            fi
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ $# -lt 2 ]]; then
+    echo >&2 "error: missing START and END"
+    exit 1
+fi
+
+start="$1"
+end="$2"
+
+shift 2
+
+grepargs=("$@")
+
+if [[ ${#grepargs[@]} -eq 0 ]]; then
+    # default grepargs of nothing
+    grepargs+=("")
+fi
+
+file="$(mktemp --tmpdir "$(basename "$0").XXXXXXXXXX.xlsx")"
+
+on_exit ()
+{
+    rm -rf "$file"
+}
+
+trap on_exit EXIT
+
+# https://unix.stackexchange.com/questions/11856/sort-but-keep-header-line-at-the-top
+body() {
+    IFS= read -r header
+    printf '%s\n' "$header"
+    "$@"
+}
+
+# XXX: add more details, especially notes
+# XXX: grep with exit status 1 should not break the pipe
+# add a || true in there
+
+# XXX: this won't actually work for >1 calendars until agendaupdate can
+# write or ignore the calendar detail
+
+gcalcli "${calendar_args[@]}" agenda \
+        --details id --details length --details action --details location \
+        --details description --tsv "$start" "$end" \
+    | body grep --perl-regexp "${grepargs[@]}" \
+    | gcal-tab2xlsx "$file"
+
+open "$file"
+
+echo "Press enter to finish after next save." >&2
+while inotifywait -e close_write -e modify "$file"; do
+    # only supply the first calendar argument
+    gcal-xlsx2tab "$file" | gcalcli "${calendar_args[@]:0:2}" agendaupdate
+    if read -t 0; then
+        read # eat up whatever was provided
+        break
+    fi
+done

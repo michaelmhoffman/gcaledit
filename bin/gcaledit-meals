@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+## meals: put meals into spreadsheet
+
+## Copyright 2020-2021, 2023-2024 Michael M. Hoffman <michael.hoffman@utoronto.ca>
+
+set -o nounset -o pipefail -o errexit
+
+if [[ $# -gt 1 || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    echo usage: "$0" [NUMDAYS]
+    exit 2
+fi
+
+num_days="${1:-9}"
+calendar="${GCALEDIT_MEALS_CALENDAR:-Family}"
+
+exec gcaledit --calendar "$calendar" \
+     "today 12am" "$num_days days 11:59pm" \
+     -i -e $'(\t|; )(Breakfast|Lunch|Dinner|Brunch|Cook)'

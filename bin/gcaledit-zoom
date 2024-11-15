@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+## gcaledit-zoom.sh: edit upcoming zoom meetings
+
+## Copyright 2023, 2024 Michael M. Hoffman <michael.hoffman@utoronto.ca>
+
+set -o nounset -o pipefail -o errexit
+
+if [[ $# -gt 3 || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    printf "usage: %s [START] [END] [CALENDAR]" "$0"
+    exit 2
+fi
+
+start="${1:-today}"
+end="${2:-2 months}"
+calendar="${3:-${GCALEDIT_ZOOM_CALENDAR:-defaultcalendarname}}"
+
+# XXX: can't patch events I don't own, shouldn't I be able to delete these at least?
+#
+# googleapiclient.errors.HttpError: <HttpError 403 when requesting https://www.googleapis.com/calendar/v3/calendars/hoffman.mm%40gmail.com/events/7nua7ofgrlq4d4o5282nou6jsa_R20210419T130000?conferenceDataVersion=1&alt=json returned "Forbidden". Details: "[{'domain': 'global', 'reason': 'forbidden', 'message': 'Forbidden'}]">
+
+exec gcaledit --calendar "$calendar" "$start" "$end" '\.zoom\.us'

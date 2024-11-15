@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+"""gcaltab2xlsx: save gcal TSV as XLSX."""
+
+__version__ = "0.1"
+
+# Copyright 2021, 2023, 2024 Michael M. Hoffman <michael.hoffman@utoronto.ca>
+
+from argparse import Namespace
+from os import EX_OK
+from pathlib import Path
+import sys
+from typing import TextIO
+
+from pandas import read_csv, to_timedelta
+from xlsxwriter import Workbook
+
+
+WORKSHEET_NAME = "Schedule"
+INFILE_SEP = "\t"
+
+DTYPE = {"location": "string"}
+
+COL_WIDTHS = {"id": 44,
+              "start_date": 10,
+              "end_date": 10,
+              "title": 40}
+
+FORMAT_HEADER = {"bold": True}
+FORMAT_LENGTH = {"num_format": "h:mm"}
+
+
+def gcal_save_xlsx(infile: TextIO, outfilepath: Path) -> int:
+    """Save gcal from standard input as XLSX."""
+    dataframe = read_csv(infile, sep=INFILE_SEP, header=0, dtype=DTYPE,
+                         na_filter=False)
+    columns = dataframe.columns
+
+    if "length" in columns:
+        dataframe.length = to_timedelta(dataframe.length)
+
+    with Workbook(outfilepath) as workbook:
+        format_header = workbook.add_format(FORMAT_HEADER)
+        format_length = workbook.add_format(FORMAT_LENGTH)
+
+        worksheet = workbook.add_worksheet(WORKSHEET_NAME)
+
+        worksheet.write_row(0, 0, columns, format_header)
+
+        for col_index, (col_name, column) \
+                in enumerate(dataframe.items()):
+            worksheet.write_column(1, col_index, column)
+
+            width = COL_WIDTHS.get(col_name)
+            if col_name == "length":
+                col_format = format_length
+            else:
+                col_format = None
+
+            worksheet.set_column(col_index, col_index, width, col_format)
+
+    return EX_OK
+
+
+def parse_args(args: list[str]) -> Namespace:
+    """Parse arguments."""
+    from argparse import (ArgumentDefaultsHelpFormatter, ArgumentParser,
+                          FileType)
+
+    description = __doc__.splitlines()[0].partition(": ")[2]
+    parser = ArgumentParser(description=description,
+                            formatter_class=ArgumentDefaultsHelpFormatter)
+
+    version = f"%(prog)s {__version__}"
+    parser.add_argument("--version", action="version", version=version)
+
+    parser.add_argument("infile", nargs="?", metavar="TSV", type=FileType(),
+                        default="-",
+                        help="path of input TSV table ('-' means stdin)")
+
+    parser.add_argument("outfile", metavar="XLSX", type=Path,
+                        help="path of output XLSX workbook")
+
+    return parser.parse_args(args)
+
+
+def main(argv: list[str] = sys.argv[1:]) -> int:
+    """Provide command-line interface."""
+    args = parse_args(argv)
+
+    with args.infile as infile:
+        return gcal_save_xlsx(infile, args.outfile)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
