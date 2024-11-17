@@ -25,4 +25,6 @@ shift "$num_shift"
 
 # grepargs: suggest .
 
-exec gcaledit --calendar "$calendar" "$start 12am" "$end 11:59pm" "$@"
+exec gcaledit --calendar "$calendar" --details id --details length \
+     --details action --details location --details description \
+     "$start 12am" "$end 11:59pm" "$@"

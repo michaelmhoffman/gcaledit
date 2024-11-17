@@ -14,6 +14,7 @@ if [[ $# -lt 4 || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 calendar_args=()
+details_args=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --calendar)
@@ -22,6 +23,15 @@ while [[ $# -gt 0 ]]; do
                 shift 2
             else
                 echo >&2 "error: --calendar requires argument"
+                exit 1
+            fi
+            ;;
+        --details)
+            if [[ -n "$2" ]]; then
+                details_args+=("--details" "$2")
+                shift 2
+            else
+                echo >&2 "error: --details requires argument"
                 exit 1
             fi
             ;;
@@ -48,6 +58,12 @@ if [[ ${#grepargs[@]} -eq 0 ]]; then
     grepargs+=("")
 fi
 
+if [[ ${#details_args[@]} -eq 0 ]]; then
+    details_args+=("--details" "id" "--details" "action"
+                   "--details" "location" "--details" "description")
+fi
+
+
 file="$(mktemp --tmpdir "$(basename "$0").XXXXXXXXXX.xlsx")"
 
 on_exit ()
@@ -72,9 +88,8 @@ body() {
 # write or ignore the calendar detail
 # https://github.com/insanum/gcalcli/issues/774
 
-gcalcli "${calendar_args[@]}" agenda \
-        --details id --details length --details action --details location \
-        --details description --tsv "$start" "$end" \
+gcalcli "${calendar_args[@]}" agenda  "${details_args[@]}" \
+        --tsv "$start" "$end" \
     | body grep --perl-regexp "${grepargs[@]}" \
     | gcal-tab2xlsx "$file"
 
@@ -84,6 +99,7 @@ echo "Press enter to finish after next save." >&2
 while inotifywait -e close_write -e modify "$file"; do
     # only supply the first calendar argument
     gcal-xlsx2tab "$file" | gcalcli "${calendar_args[@]:0:2}" agendaupdate
+
     if read -t 0; then
         read # eat up whatever was provided
         break

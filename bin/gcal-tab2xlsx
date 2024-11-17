@@ -33,10 +33,13 @@ def gcal_save_xlsx(infile: TextIO, outfilepath: Path) -> int:
     """Save gcal from standard input as XLSX."""
     dataframe = read_csv(infile, sep=INFILE_SEP, header=0, dtype=DTYPE,
                          na_filter=False)
-    columns = dataframe.columns
 
-    if "length" in columns:
+    if "length" in dataframe.columns:
         dataframe.length = to_timedelta(dataframe.length)
+
+        # delete end date and time columns if they exist to prevent conflicts
+        dataframe.drop(columns=["end_date", "end_time"], inplace=True,
+                       errors="ignore")
 
     with Workbook(outfilepath) as workbook:
         format_header = workbook.add_format(FORMAT_HEADER)
@@ -44,7 +47,7 @@ def gcal_save_xlsx(infile: TextIO, outfilepath: Path) -> int:
 
         worksheet = workbook.add_worksheet(WORKSHEET_NAME)
 
-        worksheet.write_row(0, 0, columns, format_header)
+        worksheet.write_row(0, 0, dataframe.columns, format_header)
 
         for col_index, (col_name, column) \
                 in enumerate(dataframe.items()):
