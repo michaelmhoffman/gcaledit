@@ -51,14 +51,6 @@ def xlsx2tab(filepath: Path) -> int:
     for colname in dataframe.columns:
         update_datetime(dataframe, colname)
 
-    try:
-        # XXX: add this back in when `gcalcli agendaupdate` can handle it
-        del dataframe["length"]
-    except KeyError:
-        # gcalcli 4.5.0 doesn't support `--details length`
-        # https://github.com/insanum/gcalcli/issues/791
-        pass
-
     dataframe.replace(NaT, "")
 
     dataframe.to_csv(sys.stdout, sep=CSV_SEP, index=False)
