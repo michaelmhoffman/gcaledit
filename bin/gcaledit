@@ -70,6 +70,7 @@ body() {
 
 # XXX: this won't actually work for >1 calendars until agendaupdate can
 # write or ignore the calendar detail
+# https://github.com/insanum/gcalcli/issues/774
 
 gcalcli "${calendar_args[@]}" agenda \
         --details id --details length --details action --details location \
