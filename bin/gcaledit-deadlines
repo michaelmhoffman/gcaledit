@@ -16,7 +16,12 @@ calendar="${GCALEDIT_DEADLINES_CALENDAR:-Deadlines}"
 start="${1:-3 days ago}" # suggest 3 days ago
 end="${2:-1 year}" # suggest 1 year
 
-shift 2
+num_shift="$#"
+if ((num_shift > 2)); then
+    num_shift=2
+fi
+
+shift "$num_shift"
 
 # grepargs: suggest .
 
