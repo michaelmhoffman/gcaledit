@@ -16,4 +16,4 @@ calendar="${GCALEDIT_MEALS_CALENDAR:-Family}"
 
 exec gcaledit --calendar "$calendar" \
      "today 12am" "$num_days days 11:59pm" \
-     -i -e $'(\t|; )(Breakfast|Lunch|Dinner|Brunch|Cook)'
+     -i -e '(?<!'"'"'s )(?:Breakfast|Lunch|Dinner|Brunch|Cook)'
